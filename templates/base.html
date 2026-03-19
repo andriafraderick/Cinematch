@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0a0a0f">
+  <title>{% block title %}{{ SITE_NAME }} — {{ SITE_TAGLINE }}{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://image.tmdb.org">
+  <link rel="stylesheet" href="{% static 'css/main.css' %}">
+  {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+<nav class="navbar" id="main-navbar">
+  <a href="/" class="navbar__logo">
+    <div class="navbar__logo-mark">C</div>
+    <span>Cine<span>Match</span></span>
+  </a>
+  <div class="navbar__links">
+    <a href="/" class="navbar__link {% if request.resolver_match.url_name == 'home' %}active{% endif %}">Home</a>
+    <a href="/browse/" class="navbar__link {% if request.resolver_match.url_name == 'browse' %}active{% endif %}">Browse</a>
+    {% if user.is_authenticated %}
+    <a href="/dashboard/" class="navbar__link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">My Films</a>
+    {% endif %}
+  </div>
+  <div class="navbar__search" id="navbar-search-box">
+    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-muted);flex-shrink:0" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+    <input type="text" id="navbar-search" placeholder="Search films…" autocomplete="off">
+  </div>
+  <div class="navbar__actions">
+    {% if user.is_authenticated %}
+      <span style="color:var(--text-secondary);font-size:13px;font-weight:500">{{ user.username }}</span>
+      <img src="{{ user.avatar_url }}" alt="{{ user.username }}" class="navbar__avatar">
+      <form method="post" action="/auth/logout/" id="logout-form" style="display:none">{% csrf_token %}</form>
+      <button class="btn btn-ghost btn-sm" onclick="document.getElementById('logout-form').submit()">Logout</button>
+    {% else %}
+      <a href="/auth/login/" class="btn btn-ghost btn-sm">Log in</a>
+      <a href="/auth/register/" class="btn btn-primary btn-sm">Join free</a>
+    {% endif %}
+  </div>
+</nav>
+
+<div id="search-dropdown" style="display:none;position:fixed;top:var(--nav-height);left:50%;transform:translateX(-50%);width:480px;max-width:90vw;background:var(--surface);border:1px solid var(--border);border-top:none;border-radius:0 0 var(--radius-lg) var(--radius-lg);z-index:200;box-shadow:var(--shadow-card);overflow:hidden"></div>
+
+{% if messages %}
+<div style="position:fixed;top:calc(var(--nav-height) + 12px);right:20px;z-index:500;display:flex;flex-direction:column;gap:8px">
+  {% for message in messages %}
+  <div style="background:var(--surface-raised);border:1px solid {% if message.tags == 'error' %}rgba(192,57,43,0.4){% elif message.tags == 'success' %}rgba(39,174,96,0.4){% else %}var(--border-lit){% endif %};color:var(--text-primary);padding:12px 20px;border-radius:var(--radius-md);font-size:14px;font-weight:500;display:flex;align-items:center;gap:10px;box-shadow:var(--shadow-card);animation:slideIn 0.3s var(--ease-out-expo);max-width:360px">
+    <span style="color:{% if message.tags == 'error' %}#e74c3c{% elif message.tags == 'success' %}#2ecc71{% else %}var(--amber){% endif %}">{% if message.tags == 'error' %}✕{% elif message.tags == 'success' %}✓{% else %}◆{% endif %}</span>
+    {{ message }}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<main>{% block content %}{% endblock %}</main>
+
+<footer style="border-top:1px solid var(--border);padding:48px var(--space-xl) 32px;margin-top:80px;background:var(--void)">
+  <div class="container" style="display:flex;justify-content:space-between;align-items:flex-start;gap:40px;flex-wrap:wrap">
+    <div>
+      <div style="font-family:var(--font-display);font-size:24px;letter-spacing:0.1em;color:var(--text-primary);margin-bottom:8px">CINE<span style="color:var(--amber)">MATCH</span></div>
+      <div style="font-size:13px;color:var(--text-muted);max-width:280px;line-height:1.6">{{ SITE_TAGLINE }}. Powered by collaborative filtering &amp; content-based ML.</div>
+    </div>
+    <div style="display:flex;gap:48px;flex-wrap:wrap">
+      <div>
+        <div class="label" style="margin-bottom:12px">Discover</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <a href="/browse/" style="font-size:13px;color:var(--text-secondary);text-decoration:none">Browse All</a>
+          <a href="/browse/?genre=action" style="font-size:13px;color:var(--text-secondary);text-decoration:none">Action</a>
+          <a href="/browse/?genre=drama" style="font-size:13px;color:var(--text-secondary);text-decoration:none">Drama</a>
+          <a href="/browse/?genre=science-fiction" style="font-size:13px;color:var(--text-secondary);text-decoration:none">Sci-Fi</a>
+        </div>
+      </div>
+      <div>
+        <div class="label" style="margin-bottom:12px">Account</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          {% if user.is_authenticated %}
+          <a href="/dashboard/" style="font-size:13px;color:var(--text-secondary);text-decoration:none">Dashboard</a>
+          <a href="/auth/profile/" style="font-size:13px;color:var(--text-secondary);text-decoration:none">Profile</a>
+          {% else %}
+          <a href="/auth/register/" style="font-size:13px;color:var(--text-secondary);text-decoration:none">Sign Up</a>
+          <a href="/auth/login/" style="font-size:13px;color:var(--text-secondary);text-decoration:none">Log In</a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+  <div style="border-top:1px solid var(--border);margin-top:40px;padding-top:24px;font-size:12px;color:var(--text-muted);text-align:center">
+    Movie data by <a href="https://www.themoviedb.org/" style="color:var(--amber);text-decoration:none">TMDB</a>. Built with Django + scikit-learn.
+  </div>
+</footer>
+
+<script src="{% static 'js/api.js' %}"></script>
+<script src="{% static 'js/ui.js' %}"></script>
+<script>
+(function(){
+  const input=document.getElementById('navbar-search');
+  const dropdown=document.getElementById('search-dropdown');
+  if(!input||!dropdown)return;
+  let timer;
+  input.addEventListener('input',()=>{
+    clearTimeout(timer);
+    const q=input.value.trim();
+    if(q.length<2){dropdown.style.display='none';return;}
+    timer=setTimeout(async()=>{
+      try{
+        const data=await API.movies.search(q,{page_size:5});
+        const results=data?.results||[];
+        if(!results.length){dropdown.style.display='none';return;}
+        dropdown.innerHTML=results.map(m=>`
+          <a href="/movies/${m.slug||m.id}/" style="display:flex;align-items:center;gap:12px;padding:12px 16px;text-decoration:none;color:inherit;border-bottom:1px solid var(--border);transition:background 0.15s" onmouseover="this.style.background='var(--surface-raised)'" onmouseout="this.style.background=''">
+            <img src="${m.poster_url||''}" style="width:32px;height:48px;object-fit:cover;border-radius:3px;background:var(--surface-raised)" onerror="this.style.display='none'">
+            <div><div style="font-size:14px;font-weight:500;color:var(--text-primary)">${escHtml(m.title)}</div><div style="font-size:12px;color:var(--text-muted)">${m.release_year||''} · ★ ${m.vote_average?.toFixed(1)||'–'}</div></div>
+          </a>`).join('')+`<a href="/search/?q=${encodeURIComponent(q)}" style="display:flex;align-items:center;justify-content:center;padding:12px;font-size:13px;color:var(--amber);text-decoration:none">See all results →</a>`;
+        dropdown.style.display='block';
+      }catch{}
+    },300);
+  });
+  document.addEventListener('click',e=>{if(!e.target.closest('#navbar-search-box')&&!e.target.closest('#search-dropdown'))dropdown.style.display='none';});
+  input.addEventListener('keydown',e=>{if(e.key==='Enter'){const q=input.value.trim();if(q)window.location.href=`/search/?q=${encodeURIComponent(q)}`;}if(e.key==='Escape')dropdown.style.display='none';});
+})();
+</script>
+
+<!-- Sync Django session auth with JS API client -->
+{% if user.is_authenticated %}
+<script>
+// If user is logged in via Django session but has no JWT token,
+// fetch one automatically so API calls work
+(async function() {
+  if (!localStorage.getItem('cm_access_token')) {
+    try {
+      // Use the DRF session auth to get user info
+      const resp = await fetch('/api/v1/auth/me/', {
+        headers: {'X-CSRFToken': '{{ csrf_token }}'}
+      });
+      if (resp.status === 401) {
+        // Need to get JWT token - redirect to get one via session
+        console.log('No JWT token - API calls will use session auth');
+      }
+    } catch(e) {}
+  }
+})();
+</script>
+
+<script>
+// Read JWT tokens from cookies set during login
+function getCookie(name) {
+  const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+  return match ? match[2] : null;
+}
+const access = getCookie('cm_access');
+const refresh = getCookie('cm_refresh');
+if (access) {
+  localStorage.setItem('cm_access_token', access);
+  localStorage.setItem('cm_refresh_token', refresh);
+}
+</script>
+{% endif %}
+
+{% block extra_js %}{% endblock %}
+</body>
+</html>

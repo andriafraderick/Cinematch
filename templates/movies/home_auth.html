@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}Home — {{ SITE_NAME }}{% endblock %}
+{% block content %}
+<div class="page">
+<div class="container">
+
+  <section style="padding-top:48px;padding-bottom:32px">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;margin-bottom:32px">
+      <div>
+        <div class="label" style="margin-bottom:8px">Welcome back</div>
+        <h1 style="font-family:var(--font-display);font-size:40px;letter-spacing:0.04em">{{ user.username|upper }}</h1>
+      </div>
+      <div id="algo-chip-container"></div>
+    </div>
+
+    <div class="section-header">
+      <h2 class="section-title">For You</h2>
+      <button class="section-link" onclick="refreshRecs()" id="refresh-btn">Refresh ↻</button>
+    </div>
+    <div class="carousel carousel--wide" id="recs-carousel">
+      <button class="carousel__arrow carousel__arrow--left">‹</button>
+      <div class="carousel__track" id="recs-track"></div>
+      <button class="carousel__arrow carousel__arrow--right">›</button>
+    </div>
+
+    <div class="section-header" style="margin-top:48px">
+      <h2 class="section-title">Trending</h2>
+      <a href="/browse/" class="section-link">All films <span>→</span></a>
+    </div>
+    <div class="carousel carousel--wide" id="trending-carousel">
+      <button class="carousel__arrow carousel__arrow--left">‹</button>
+      <div class="carousel__track" id="trending-track"></div>
+      <button class="carousel__arrow carousel__arrow--right">›</button>
+    </div>
+
+    <div class="section-header" style="margin-top:48px">
+      <h2 class="section-title">Critically Acclaimed</h2>
+    </div>
+    <div class="carousel" id="toprated-carousel">
+      <button class="carousel__arrow carousel__arrow--left">‹</button>
+      <div class="carousel__track" id="toprated-track"></div>
+      <button class="carousel__arrow carousel__arrow--right">›</button>
+    </div>
+  </section>
+
+</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+async function loadRecs() {
+  try {
+    const data = await API.recs.get();
+    const recs = data?.results || [];
+    const track = document.getElementById('recs-track');
+    track.innerHTML = '';
+    if (!recs.length) {
+      track.innerHTML = `<div style="padding:40px;color:var(--text-muted);font-size:14px">
+        <a href="/auth/onboarding/" class="btn btn-primary">Set up your taste profile →</a>
+      </div>`;
+      return;
+    }
+    recs.forEach((rec, i) => {
+      const card = MovieCard(rec.movie, {
+        recId: rec.id,
+        reasonText: rec.reason_text,
+        showReason: true,
+      });
+      card.style.animationDelay = `${i * 40}ms`;
+      track.appendChild(card);
+    });
+    initCarousel(document.getElementById('recs-carousel'));
+    if (data.algorithm) {
+      const labels = {hybrid:'Hybrid ML',content:'Content-Based',collaborative:'Collaborative',popularity:'Trending',genre:'Genre Match'};
+      document.getElementById('algo-chip-container').innerHTML = `
+        <div class="algo-chip"><div class="dot"></div>${labels[data.algorithm]||data.algorithm} · ${data.ratings_used||0} ratings</div>
+      `;
+    }
+  } catch(e) { console.warn('Recs error:', e); }
+}
+
+window.refreshRecs = async function() {
+  const btn = document.getElementById('refresh-btn');
+  btn.textContent = 'Refreshing...';
+  try {
+    await API.recs.refresh();
+    await loadRecs();
+    Toast.success('Recommendations updated!');
+  } catch { Toast.error('Could not refresh.'); }
+  finally { btn.textContent = 'Refresh ↻'; }
+};
+
+document.addEventListener('DOMContentLoaded', async () => {
+  loadRecs();
+  try {
+    const trending = await API.movies.trending() || [];
+    const track = document.getElementById('trending-track');
+    trending.forEach((m,i)=>{ const c=MovieCard(m); c.style.animationDelay=`${i*40}ms`; track.appendChild(c); });
+    initCarousel(document.getElementById('trending-carousel'));
+  } catch {}
+  try {
+    const top = await API.movies.topRated() || [];
+    const track = document.getElementById('toprated-track');
+    top.forEach((m,i)=>{ const c=MovieCard(m); c.style.animationDelay=`${i*40}ms`; track.appendChild(c); });
+    initCarousel(document.getElementById('toprated-carousel'));
+  } catch {}
+});
+</script>
+{% endblock %}

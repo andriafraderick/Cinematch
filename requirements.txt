@@ -1,0 +1,36 @@
+# ============================================================
+# CineMatch - AI Movie Recommendation System
+# Requirements File
+# ============================================================
+# Install with: pip install -r requirements.txt
+
+# --- Core Django Stack ---
+Django==4.2.11                   # Main web framework
+djangorestframework==3.15.1      # REST API layer
+djangorestframework-simplejwt==5.3.1  # JWT authentication tokens
+
+# --- Database ---
+psycopg2-binary==2.9.11           # PostgreSQL adapter for Python
+
+# --- ML / Recommendation Engine ---
+scipy>=1.11.0                   # Sparse matrix support for collaborative filtering
+numpy>=1.26.0               # Numerical computing (matrix ops)
+pandas>=2.0.0               # Dataframe operations for user-item matrix
+scikit-learn>=1.3.0              # TF-IDF, cosine similarity, SVD                 
+
+# --- API & External Data ---
+requests==2.31.0                 # HTTP calls to TMDB API
+python-dotenv==1.0.1             # Load .env config securely
+Pillow>=11.0.0                  # Image handling for movie posters
+
+# --- Utilities ---
+django-cors-headers==4.3.1       # CORS support for frontend requests
+django-filter==24.2              # DRF filtering support
+django-extensions==3.2.3        # Extra management commands (shell_plus etc.)
+whitenoise==6.6.0                # Serve static files in production
+
+# --- Admin Enhancement ---
+django-jazzmin==3.0.0            # Beautiful custom admin UI (replaces default admin)
+
+# --- Caching (optional but recommended for recs) ---
+django-redis==5.4.0              # Redis cache backend for recommendation caching

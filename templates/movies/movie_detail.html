@@ -1,0 +1,280 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}{{ movie.title }} ({{ movie.release_year }}) — {{ SITE_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page" style="padding-top:0">
+
+<!-- BACKDROP HERO -->
+<div style="position:relative;height:70vh;min-height:480px;overflow:hidden;margin-top:calc(-1 * var(--nav-height))">
+  <!-- {% if movie.backdrop_url or movie.backdrop_path %}
+  <img src="{{ movie.backdrop_url }}"
+       style="width:100%;height:100%;object-fit:cover;filter:brightness(0.35) saturate(0.8)" alt="">
+  {% endif %} -->
+
+  {% if movie.backdrop_url %}
+  <img src="{{ movie.backdrop_url }}"
+      style="width:100%;height:100%;object-fit:cover;filter:brightness(0.35) saturate(0.8)" alt=""
+      onerror="this.style.display='none'">
+{% endif %}
+  <div style="position:absolute;inset:0;background:linear-gradient(0deg,var(--obsidian) 0%,rgba(10,10,15,0.4) 60%,rgba(10,10,15,0.1) 100%)"></div>
+
+  <div style="position:absolute;bottom:0;left:0;right:0;padding:0 var(--space-xl) 48px" class="container">
+    <div style="display:flex;gap:32px;align-items:flex-end;flex-wrap:wrap">
+
+      <!-- POSTER -->
+      <div style="flex-shrink:0;width:180px;border-radius:var(--radius-lg);overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.7);border:2px solid var(--border)">
+        {% if movie.poster_url or movie.poster_path %}
+        <img src="{{ movie.poster_url }}" alt="{{ movie.title }}" style="width:100%;display:block">
+        {% else %}
+        <div style="width:180px;height:270px;background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:48px">🎬</div>
+        {% endif %}
+      </div>
+
+      <!-- INFO -->
+      <div style="flex:1;min-width:280px">
+        <div class="hero__badge" style="margin-bottom:12px">
+          {% for genre in movie.genres.all|slice:":2" %}{{ genre.name }}{% if not forloop.last %} · {% endif %}{% endfor %}
+        </div>
+        <h1 style="font-family:var(--font-display);font-size:clamp(32px,5vw,64px);letter-spacing:0.04em;text-transform:uppercase;line-height:0.95;margin-bottom:12px">
+          {{ movie.title }}
+        </h1>
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:20px;font-size:14px;color:var(--text-secondary)">
+          {% if movie.vote_average %}<span style="color:var(--amber);font-weight:700;font-size:18px">★ {{ movie.vote_average|floatformat:1 }}</span><span>·</span>{% endif %}
+          {% if movie.release_year %}<span>{{ movie.release_year }}</span>{% endif %}
+          {% if movie.runtime %}<span>·</span><span>{{ movie.runtime }} min</span>{% endif %}
+          {% if movie.original_language != 'en' %}<span>·</span><span class="badge badge-blue">{{ movie.original_language|upper }}</span>{% endif %}
+        </div>
+        {% if movie.tagline %}
+        <p style="font-family:var(--font-editorial);font-size:16px;color:var(--amber);margin-bottom:16px;font-style:italic">"{{ movie.tagline }}"</p>
+        {% endif %}
+        <!-- Action buttons -->
+        <div style="display:flex;gap:12px;flex-wrap:wrap" id="movie-actions">
+          <button class="btn btn-primary" onclick="openRatingModal({{ movie.id }}, '{{ movie.title|escapejs }}', null)">
+            ★ Rate This Film
+          </button>
+          <button class="btn btn-ghost" id="watchlist-btn" onclick="handleWatchlistToggle()">
+            ♡ Watchlist
+          </button>
+          <button class="btn btn-ghost" onclick="handleMarkWatched()">
+            ✓ Mark Watched
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- BODY -->
+<div class="container">
+<div style="display:grid;grid-template-columns:1fr 300px;gap:48px;padding:48px 0" class="detail-grid">
+
+  <!-- LEFT COLUMN -->
+  <div>
+
+    <!-- Overview -->
+    {% if movie.overview %}
+    <section style="margin-bottom:48px">
+      <h2 style="font-size:13px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-muted);margin-bottom:16px">Synopsis</h2>
+      <p style="font-size:15px;line-height:1.75;color:var(--text-secondary)">{{ movie.overview }}</p>
+    </section>
+    {% endif %}
+
+    <!-- Cast -->
+    <section style="margin-bottom:48px">
+      <h2 style="font-size:13px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-muted);margin-bottom:20px">Cast</h2>
+      <div style="display:flex;gap:16px;overflow-x:auto;padding-bottom:8px;scrollbar-width:none">
+        {% for mc in movie.moviecast_set.all|slice:":8" %}
+        <div style="flex-shrink:0;width:90px;text-align:center">
+          <div style="width:80px;height:80px;border-radius:50%;overflow:hidden;margin:0 auto 8px;background:var(--surface);border:2px solid var(--border)">
+            {% if mc.person.profile_image_url %}
+            <img src="{{ mc.person.profile_image_url }}" alt="{{ mc.person.name }}" style="width:100%;height:100%;object-fit:cover">
+            {% else %}
+            <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:28px">👤</div>
+            {% endif %}
+          </div>
+          <div style="font-size:12px;font-weight:600;color:var(--text-primary);line-height:1.3">{{ mc.person.name }}</div>
+          <div style="font-size:11px;color:var(--text-muted);line-height:1.3;margin-top:2px">{{ mc.character|truncatechars:20 }}</div>
+        </div>
+        {% empty %}
+        <div style="color:var(--text-muted);font-size:14px">No cast data available.</div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <!-- Similar Movies -->
+    <section>
+      <h2 style="font-size:13px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-muted);margin-bottom:20px">More Like This</h2>
+      <div class="carousel" id="similar-carousel">
+        <button class="carousel__arrow carousel__arrow--left">‹</button>
+        <div class="carousel__track" id="similar-track">
+          <div style="color:var(--text-muted);font-size:14px;padding:20px">Loading similar films…</div>
+        </div>
+        <button class="carousel__arrow carousel__arrow--right">›</button>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- RIGHT COLUMN -->
+  <div>
+
+    <!-- Your Rating -->
+    <div class="stat-card" style="margin-bottom:20px" id="your-rating-card">
+      <div class="label" style="margin-bottom:12px">Your Rating</div>
+      <div id="your-rating-display" style="color:var(--text-muted);font-size:14px">Not rated yet</div>
+    </div>
+
+    <!-- Movie Details -->
+    <div class="stat-card" style="margin-bottom:20px">
+      <div class="label" style="margin-bottom:16px">Details</div>
+      <div style="display:flex;flex-direction:column;gap:12px;font-size:14px">
+        {% with directors=movie.moviecrew_set.all %}
+        {% for crew in directors %}{% if crew.job == 'Director' %}
+        <div style="display:flex;justify-content:space-between">
+          <span style="color:var(--text-muted)">Director</span>
+          <span style="color:var(--text-primary);font-weight:500">{{ crew.person.name }}</span>
+        </div>
+        {% endif %}{% endfor %}{% endwith %}
+        {% if movie.release_date %}
+        <div style="display:flex;justify-content:space-between">
+          <span style="color:var(--text-muted)">Released</span>
+          <span>{{ movie.release_date|date:"M j, Y" }}</span>
+        </div>
+        {% endif %}
+        {% if movie.runtime %}
+        <div style="display:flex;justify-content:space-between">
+          <span style="color:var(--text-muted)">Runtime</span>
+          <span>{{ movie.runtime }} min</span>
+        </div>
+        {% endif %}
+        {% if movie.original_language %}
+        <div style="display:flex;justify-content:space-between">
+          <span style="color:var(--text-muted)">Language</span>
+          <span>{{ movie.original_language|upper }}</span>
+        </div>
+        {% endif %}
+        <div style="display:flex;justify-content:space-between">
+          <span style="color:var(--text-muted)">TMDB Rating</span>
+          <span style="color:var(--amber);font-weight:600">★ {{ movie.vote_average|floatformat:1 }} <span style="color:var(--text-muted);font-weight:400">({{ movie.vote_count|default:0 }})</span></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Streaming Links -->
+    <div id="streaming-section" style="display:none">
+      <div class="label" style="margin-bottom:12px">Where to Watch</div>
+      <div id="streaming-links" style="display:flex;flex-direction:column;gap:8px"></div>
+    </div>
+
+  </div>
+</div>
+</div>
+</div>
+
+<style>
+@media(max-width:768px){
+  .detail-grid{grid-template-columns:1fr!important}
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const MOVIE_ID = {{ movie.id }};
+
+document.addEventListener('DOMContentLoaded', async () => {
+
+  // Load similar movies
+  try {
+    const similar = await API.movies.similar(MOVIE_ID) || [];
+    const track = document.getElementById('similar-track');
+    track.innerHTML = '';
+    if (similar.length) {
+      similar.forEach((s,i)=>{
+        const card = MovieCard(s.similar_movie||s, {});
+        card.style.animationDelay = `${i*40}ms`;
+        track.appendChild(card);
+      });
+      initCarousel(document.getElementById('similar-carousel'));
+    } else {
+      track.innerHTML = '<div style="color:var(--text-muted);font-size:14px;padding:20px">No similar films found yet.</div>';
+    }
+  } catch {}
+
+  // Check user rating & watchlist (if logged in)
+  if (API.auth.isLoggedIn()) {
+    try {
+      const detail = await API.movies.get(MOVIE_ID);
+      const rating = detail?.user_rating;
+      const inWatchlist = detail?.in_watchlist;
+
+      if (rating) {
+        document.getElementById('your-rating-display').innerHTML =
+          `<div style="font-family:var(--font-display);font-size:36px;color:var(--amber)">${rating}/10</div>
+           <button onclick="openRatingModal(${MOVIE_ID},'{{ movie.title|escapejs }}',${rating})" class="btn btn-ghost btn-sm" style="margin-top:8px">Edit Rating</button>`;
+      } else {
+        document.getElementById('your-rating-display').innerHTML =
+          `<button class="btn btn-primary btn-sm" onclick="openRatingModal(${MOVIE_ID},'{{ movie.title|escapejs }}',null)">Rate this film</button>`;
+      }
+
+      const wlBtn = document.getElementById('watchlist-btn');
+      if (wlBtn) {
+        wlBtn.textContent = inWatchlist ? '♥ In Watchlist' : '♡ Watchlist';
+        wlBtn.classList.toggle('active', inWatchlist);
+        window._inWatchlist = inWatchlist;
+      }
+    } catch {}
+
+    // Streaming links
+    try {
+      const detail = await API.movies.get(MOVIE_ID);
+      const links = detail?.streaming_links || [];
+      if (links.length) {
+        const section = document.getElementById('streaming-section');
+        const container = document.getElementById('streaming-links');
+        section.style.display = 'block';
+        container.innerHTML = links.slice(0,5).map(l=>`
+          <a href="${l.url||'#'}" target="_blank" rel="noopener" class="provider-badge">
+            ${l.provider_logo ? `<img src="${l.provider_logo}" alt="${escHtml(l.provider_name)}">` : ''}
+            <div>
+              <div class="provider-badge__name">${escHtml(l.provider_name)}</div>
+              <div class="provider-badge__type">${escHtml(l.link_type||'stream')}</div>
+            </div>
+          </a>
+        `).join('');
+      }
+    } catch {}
+  }
+});
+
+window.handleWatchlistToggle = async function() {
+  if (!API.auth.isLoggedIn()) { window.location.href='/auth/login/'; return; }
+  const btn = document.getElementById('watchlist-btn');
+  const inWl = window._inWatchlist;
+  btn.disabled = true;
+  try {
+    if (inWl) {
+      await API.watchlist.remove(MOVIE_ID);
+      btn.textContent = '♡ Watchlist';
+      window._inWatchlist = false;
+      Toast.info('Removed from watchlist');
+    } else {
+      await API.watchlist.add(MOVIE_ID);
+      btn.textContent = '♥ In Watchlist';
+      window._inWatchlist = true;
+      Toast.success('Added to watchlist');
+    }
+  } catch(e){ Toast.error(e.data?.non_field_errors?.[0]||'Error'); }
+  finally { btn.disabled = false; }
+};
+
+window.handleMarkWatched = async function() {
+  if (!API.auth.isLoggedIn()) { window.location.href='/auth/login/'; return; }
+  try {
+    await API.watched.add(MOVIE_ID);
+    Toast.success('Marked as watched!');
+  } catch(e){ Toast.error(e.message||'Error'); }
+};
+</script>
+{% endblock %}

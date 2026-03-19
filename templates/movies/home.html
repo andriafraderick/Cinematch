@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}{{ SITE_NAME }} — {{ SITE_TAGLINE }}{% endblock %}
+{% block content %}
+<div class="page" style="padding-top:0">
+
+<!-- HERO -->
+<section class="hero" id="hero-section">
+  <img class="hero__backdrop" id="hero-backdrop" src="" alt="">
+  <div class="hero__gradient"></div>
+  <div class="hero__content">
+    <div class="hero__badge" id="hero-badge" style="opacity:0"><span>✦</span> Featured Tonight</div>
+    <h1 class="hero__title" id="hero-title" style="opacity:0">CINEMATCH</h1>
+    <div class="hero__meta" id="hero-meta" style="opacity:0"></div>
+    <p class="hero__overview" id="hero-overview" style="opacity:0"></p>
+    <div class="hero__actions" style="opacity:0" id="hero-actions">
+      <a href="/auth/register/" class="btn btn-primary btn-lg">▶ Start Free</a>
+      <button class="btn btn-ghost btn-lg" id="hero-more-btn">More Info</button>
+    </div>
+  </div>
+</section>
+
+<div class="container">
+
+<!-- TRENDING -->
+<section class="section">
+  <div class="section-header">
+    <h2 class="section-title">Trending Now</h2>
+    <a href="/browse/" class="section-link">Browse all <span>→</span></a>
+  </div>
+  <div class="carousel carousel--wide" id="trending-carousel">
+    <button class="carousel__arrow carousel__arrow--left">‹</button>
+    <div class="carousel__track" id="trending-track"></div>
+    <button class="carousel__arrow carousel__arrow--right">›</button>
+  </div>
+</section>
+
+<!-- GENRE STRIP -->
+<section class="section" style="padding-top:0">
+  <div class="section-header"><h2 class="section-title">Browse by Genre</h2></div>
+  <div style="display:flex;flex-wrap:wrap;gap:10px">
+    {% for genre in genres %}
+    <a href="/browse/?genre={{ genre.slug }}" class="badge badge-amber"
+       style="text-decoration:none;padding:8px 16px;font-size:12px;transition:transform 0.15s"
+       onmouseover="this.style.transform='scale(1.06)'" onmouseout="this.style.transform=''">
+      {{ genre.icon }} {{ genre.name }}
+    </a>
+    {% endfor %}
+  </div>
+</section>
+
+<!-- TOP RATED -->
+<section class="section">
+  <div class="section-header">
+    <h2 class="section-title">Critically Acclaimed</h2>
+    <a href="/browse/?min_rating=8" class="section-link">See all <span>→</span></a>
+  </div>
+  <div class="carousel" id="toprated-carousel">
+    <button class="carousel__arrow carousel__arrow--left">‹</button>
+    <div class="carousel__track" id="toprated-track"></div>
+    <button class="carousel__arrow carousel__arrow--right">›</button>
+  </div>
+</section>
+
+<!-- VALUE PROPS -->
+<section class="section">
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:20px">
+    <div class="stat-card animate-fade-up" style="text-align:center;padding:36px 28px">
+      <div style="font-size:36px;margin-bottom:12px">🧠</div>
+      <div style="font-size:16px;font-weight:600;margin-bottom:8px">Hybrid ML Engine</div>
+      <div style="font-size:13px;color:var(--text-secondary);line-height:1.6">Collaborative filtering + content-based analysis. Netflix-grade science, open source.</div>
+    </div>
+    <div class="stat-card animate-fade-up" style="text-align:center;padding:36px 28px;animation-delay:80ms">
+      <div style="font-size:36px;margin-bottom:12px">✦</div>
+      <div style="font-size:16px;font-weight:600;margin-bottom:8px">Your Taste DNA</div>
+      <div style="font-size:13px;color:var(--text-secondary);line-height:1.6">Rate 5 films. Get a model trained exclusively on your preferences.</div>
+    </div>
+    <div class="stat-card animate-fade-up" style="text-align:center;padding:36px 28px;animation-delay:160ms">
+      <div style="font-size:36px;margin-bottom:12px">🎯</div>
+      <div style="font-size:16px;font-weight:600;margin-bottom:8px">Explained Recs</div>
+      <div style="font-size:13px;color:var(--text-secondary);line-height:1.6">Every suggestion comes with a reason. No black boxes.</div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="section" style="text-align:center;padding:80px 0">
+  <div class="label" style="margin-bottom:16px">Your personal cinema</div>
+  <h2 style="font-family:var(--font-display);font-size:clamp(40px,6vw,72px);letter-spacing:0.04em;text-transform:uppercase;margin-bottom:24px;line-height:0.95">
+    Films that find <span style="color:var(--amber)">you.</span>
+  </h2>
+  <p style="font-size:15px;color:var(--text-secondary);max-width:500px;margin:0 auto 36px;line-height:1.7">
+    Rate movies. Build your taste profile. Get recommendations that actually match who you are.
+  </p>
+  <a href="/auth/register/" class="btn btn-primary btn-lg">Create your taste profile →</a>
+</section>
+
+</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+  // Trending
+  try {
+    const movies = await API.movies.trending() || [];
+    if (movies.length) {
+      const hero = movies[0];
+      if (hero.backdrop_path || hero.backdrop_url) {
+        const img = document.getElementById('hero-backdrop');
+        img.src = hero.backdrop_url || `https://image.tmdb.org/t/p/w1280${hero.backdrop_path}`;
+        img.onload = () => document.getElementById('hero-section').classList.add('loaded');
+      }
+      document.getElementById('hero-title').textContent = hero.title;
+      document.getElementById('hero-overview').textContent = hero.overview || '';
+      document.getElementById('hero-meta').innerHTML = `
+        <span class="hero__rating">★ ${(hero.vote_average||0).toFixed(1)}</span>
+        <span>·</span><span>${hero.release_year||''}</span>
+        ${(hero.genres||[]).slice(0,2).map(g=>`<span class="badge badge-amber" style="padding:2px 8px">${escHtml(g.name)}</span>`).join('')}
+      `;
+      document.getElementById('hero-more-btn').onclick = () => window.location.href = `/movies/${hero.slug||hero.id}/`;
+      ['hero-badge','hero-title','hero-meta','hero-overview','hero-actions'].forEach((id,i)=>{
+        const el=document.getElementById(id);
+        if(el) setTimeout(()=>{el.style.transition='opacity 0.6s ease';el.style.opacity='1';},300+i*120);
+      });
+    }
+    const track = document.getElementById('trending-track');
+    movies.forEach((m,i)=>{ const c=MovieCard(m); c.style.animationDelay=`${i*40}ms`; track.appendChild(c); });
+    initCarousel(document.getElementById('trending-carousel'));
+  } catch(e){console.warn(e);}
+
+  // Top rated
+  try {
+    const top = await API.movies.topRated() || [];
+    const track = document.getElementById('toprated-track');
+    top.forEach((m,i)=>{ const c=MovieCard(m); c.style.animationDelay=`${i*40}ms`; track.appendChild(c); });
+    initCarousel(document.getElementById('toprated-carousel'));
+  } catch {}
+});
+</script>
+{% endblock %}

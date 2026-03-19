@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}{{ user.username }} — Profile — {{ SITE_NAME }}{% endblock %}
+{% block content %}
+<div class="page">
+<div class="container" style="max-width:900px;padding-top:48px;padding-bottom:80px">
+
+  <div style="display:flex;align-items:center;gap:24px;margin-bottom:48px;flex-wrap:wrap">
+    <img src="{{ user.avatar_url }}" alt="{{ user.username }}"
+         style="width:96px;height:96px;border-radius:50%;border:3px solid var(--amber);object-fit:cover">
+    <div>
+      <h1 style="font-family:var(--font-display);font-size:40px;letter-spacing:0.04em">{{ user.username|upper }}</h1>
+      <div style="color:var(--text-secondary);font-size:14px">{{ user.email }}</div>
+      <div style="color:var(--text-muted);font-size:13px;margin-top:4px">Member since {{ user.date_joined|date:"M Y" }}</div>
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:16px;margin-bottom:48px">
+    <div class="stat-card" style="text-align:center">
+      <div class="stat-value">{{ total_ratings }}</div>
+      <div class="stat-label">Films Rated</div>
+    </div>
+    <div class="stat-card" style="text-align:center">
+      <div class="stat-value">{{ watch_count }}</div>
+      <div class="stat-label">Films Watched</div>
+    </div>
+    <div class="stat-card" style="text-align:center">
+      <div class="stat-value">{{ watchlist_count }}</div>
+      <div class="stat-label">Watchlist</div>
+    </div>
+  </div>
+
+  <!-- EDIT PROFILE FORM -->
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-xl);padding:32px;margin-bottom:40px">
+    <h2 style="font-size:18px;font-weight:600;margin-bottom:24px">Edit Profile</h2>
+
+    <form method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div class="form-group">
+          <label class="form-label">Username</label>
+          <input type="text" name="username" class="form-input" value="{{ user.username }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Full Name</label>
+          <input type="text" name="full_name" class="form-input" value="{{ user.full_name }}">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Preferred Language</label>
+        <select name="preferred_language" class="form-input">
+          <option value="en" {% if user.profile.preferred_language == 'en' %}selected{% endif %}>English</option>
+          <option value="hi" {% if user.profile.preferred_language == 'hi' %}selected{% endif %}>Hindi</option>
+          <option value="fr" {% if user.profile.preferred_language == 'fr' %}selected{% endif %}>French</option>
+          <option value="ko" {% if user.profile.preferred_language == 'ko' %}selected{% endif %}>Korean</option>
+          <option value="ja" {% if user.profile.preferred_language == 'ja' %}selected{% endif %}>Japanese</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Preferred Genres</label>
+        <div style="display:flex;flex-wrap:wrap;gap:8px">
+          {% for genre in all_genres %}
+          <label class="genre-pill" style="border-radius:var(--radius-md)">
+            <input type="checkbox" name="preferred_genres" value="{{ genre.id }}"
+                   {% if genre in user.profile.preferred_genres.all %}checked{% endif %}>
+            {{ genre.icon }} {{ genre.name }}
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="form-group" style="margin-top:8px">
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
+          <input type="checkbox" name="include_adult_content"
+                 {% if user.profile.include_adult_content %}checked{% endif %}
+                 style="width:16px;height:16px;accent-color:var(--amber)">
+          <span style="font-size:14px;color:var(--text-secondary)">Include adult/mature content in recommendations</span>
+        </label>
+      </div>
+      <button type="submit" class="btn btn-primary" style="margin-top:16px">Save Changes</button>
+    </form>
+  </div>
+
+  <!-- RECENT RATINGS -->
+  <div>
+    <h2 style="font-size:18px;font-weight:600;margin-bottom:20px">Recent Ratings</h2>
+    {% if recent_ratings %}
+    <div style="display:flex;flex-direction:column;gap:10px">
+      {% for rating in recent_ratings %}
+      <a href="/movies/{{ rating.movie.slug }}/" class="rec-card" style="text-decoration:none">
+        <img class="rec-card__poster" src="{{ rating.movie.poster_url }}" alt="{{ rating.movie.title }}" onerror="this.style.display='none'">
+        <div class="rec-card__body">
+          <div class="rec-card__title">{{ rating.movie.title }}</div>
+          <div class="rec-card__meta">{{ rating.movie.release_year }}</div>
+          {% if rating.review %}<div style="font-size:12px;color:var(--text-secondary);margin-top:4px;font-style:italic">"{{ rating.review|truncatechars:80 }}"</div>{% endif %}
+        </div>
+        <div class="rec-card__score">{{ rating.score|floatformat:0 }}<span style="font-size:14px;color:var(--text-muted)">/10</span></div>
+      </a>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div style="color:var(--text-muted);font-size:14px">You haven't rated any films yet. <a href="/browse/" style="color:var(--amber);text-decoration:none">Browse films →</a></div>
+    {% endif %}
+  </div>
+
+</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.querySelectorAll('.genre-pill').forEach(pill => {
+  const cb = pill.querySelector('input[type="checkbox"]');
+  if (cb?.checked) pill.classList.add('selected');
+  pill.addEventListener('click', () => {
+    setTimeout(() => pill.classList.toggle('selected', cb.checked), 0);
+  });
+});
+</script>
+{% endblock %}

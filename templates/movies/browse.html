@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+{% block title %}Browse — {{ SITE_NAME }}{% endblock %}
+{% block content %}
+<div class="page">
+<div class="container">
+<section class="section">
+
+  <div class="section-header" style="margin-bottom:28px">
+    <h1 style="font-family:var(--font-display);font-size:40px;letter-spacing:0.04em">BROWSE FILMS</h1>
+  </div>
+
+  <!-- FILTER BAR -->
+  <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:32px;align-items:flex-end">
+    <div class="form-group" style="margin:0;min-width:160px">
+      <label class="form-label">Genre</label>
+      <select id="filter-genre" class="form-input" style="padding:10px 14px;cursor:pointer">
+        <option value="">All Genres</option>
+        {% for genre in genres %}
+        <option value="{{ genre.slug }}" {% if current_genre == genre.slug %}selected{% endif %}>{{ genre.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-group" style="margin:0;min-width:100px">
+      <label class="form-label">Year from</label>
+      <select id="filter-year-min" class="form-input" style="padding:10px 14px;cursor:pointer">
+        <option value="">Any</option>
+        <option value="2024">2024</option>
+        <option value="2023">2023</option>
+        <option value="2022">2022</option>
+        <option value="2020">2020</option>
+        <option value="2015">2015</option>
+        <option value="2010">2010</option>
+        <option value="2005">2005</option>
+        <option value="2000">2000</option>
+        <option value="1990">1990</option>
+        <option value="1980">1980</option>
+      </select>
+    </div>
+    <div class="form-group" style="margin:0;min-width:120px">
+      <label class="form-label">Min Rating</label>
+      <select id="filter-rating" class="form-input" style="padding:10px 14px;cursor:pointer">
+        <option value="">Any</option>
+        <option value="9">9+ Masterpiece</option>
+        <option value="8">8+ Excellent</option>
+        <option value="7">7+ Good</option>
+        <option value="6">6+ Decent</option>
+      </select>
+    </div>
+    <div class="form-group" style="margin:0;min-width:120px">
+      <label class="form-label">Language</label>
+      <select id="filter-lang" class="form-input" style="padding:10px 14px;cursor:pointer">
+        <option value="">Any</option>
+        <option value="en">English</option>
+        <option value="hi">Hindi</option>
+        <option value="fr">French</option>
+        <option value="ko">Korean</option>
+        <option value="ja">Japanese</option>
+        <option value="es">Spanish</option>
+        <option value="de">German</option>
+      </select>
+    </div>
+    <div class="form-group" style="margin:0;min-width:140px">
+      <label class="form-label">Sort By</label>
+      <select id="filter-sort" class="form-input" style="padding:10px 14px;cursor:pointer">
+        <option value="-popularity">Most Popular</option>
+        <option value="-vote_average">Highest Rated</option>
+        <option value="-release_year">Newest First</option>
+        <option value="release_year">Oldest First</option>
+        <option value="title">A–Z</option>
+      </select>
+    </div>
+    <button class="btn btn-ghost" onclick="resetFilters()">Clear filters</button>
+  </div>
+
+  <!-- RESULTS COUNT -->
+  <div style="font-size:13px;color:var(--text-muted);margin-bottom:20px" id="result-count"></div>
+
+  <!-- MOVIE GRID -->
+  <div id="movie-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:20px"></div>
+
+  <!-- PAGINATION -->
+  <div id="pagination" style="display:flex;gap:8px;justify-content:center;margin-top:40px;flex-wrap:wrap"></div>
+
+</section>
+</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentPage = 1;
+let totalPages = 1;
+
+function getFilters() {
+  return {
+    genre_slug: document.getElementById('filter-genre').value || null,
+    year_min: document.getElementById('filter-year-min').value || null,
+    min_rating: document.getElementById('filter-rating').value || null,
+    language: document.getElementById('filter-lang').value || null,
+    ordering: document.getElementById('filter-sort').value || '-popularity',
+    page: currentPage,
+    page_size: 40,
+  };
+}
+
+async function loadMovies() {
+  const grid = document.getElementById('movie-grid');
+  grid.innerHTML = '<div style="grid-column:1/-1;display:flex;gap:16px;flex-wrap:wrap">' + Skeleton.movieCard(12) + '</div>';
+
+  try {
+    const params = getFilters();
+    const data = await API.movies.list(params);
+    const movies = data?.results || [];
+    totalPages = Math.ceil((data?.count||0) / 40);
+
+    document.getElementById('result-count').textContent =
+      data?.count ? `${data.count.toLocaleString()} films` : 'No films found';
+
+    grid.innerHTML = '';
+    if (!movies.length) {
+      grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:60px 0;color:var(--text-muted)">No films found for these filters.</div>';
+      return;
+    }
+
+    movies.forEach((m, i) => {
+      const card = MovieCard(m);
+      card.style.animationDelay = `${i * 20}ms`;
+      grid.appendChild(card);
+    });
+
+    renderPagination();
+  } catch(e) {
+    grid.innerHTML = '<div style="grid-column:1/-1;color:var(--text-muted);padding:40px;text-align:center">Could not load films.</div>';
+  }
+}
+
+function renderPagination() {
+  const container = document.getElementById('pagination');
+  container.innerHTML = '';
+  if (totalPages <= 1) return;
+
+  const pages = [];
+  for (let i = Math.max(1, currentPage-2); i <= Math.min(totalPages, currentPage+2); i++) pages.push(i);
+
+  if (currentPage > 1) {
+    const btn = document.createElement('button');
+    btn.className = 'btn btn-ghost btn-sm';
+    btn.textContent = '← Prev';
+    btn.onclick = () => { currentPage--; loadMovies(); window.scrollTo(0,0); };
+    container.appendChild(btn);
+  }
+
+  pages.forEach(p => {
+    const btn = document.createElement('button');
+    btn.className = `btn btn-sm ${p === currentPage ? 'btn-primary' : 'btn-ghost'}`;
+    btn.textContent = p;
+    btn.onclick = () => { currentPage = p; loadMovies(); window.scrollTo(0,0); };
+    container.appendChild(btn);
+  });
+
+  if (currentPage < totalPages) {
+    const btn = document.createElement('button');
+    btn.className = 'btn btn-ghost btn-sm';
+    btn.textContent = 'Next →';
+    btn.onclick = () => { currentPage++; loadMovies(); window.scrollTo(0,0); };
+    container.appendChild(btn);
+  }
+}
+
+function resetFilters() {
+  ['filter-genre','filter-year-min','filter-rating','filter-lang'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('filter-sort').value = '-popularity';
+  currentPage = 1;
+  loadMovies();
+}
+
+// Listen for filter changes
+['filter-genre','filter-year-min','filter-rating','filter-lang','filter-sort'].forEach(id => {
+  document.getElementById(id).addEventListener('change', () => { currentPage = 1; loadMovies(); });
+});
+
+// Apply URL genre param on load
+const urlGenre = new URLSearchParams(window.location.search).get('genre');
+if (urlGenre) document.getElementById('filter-genre').value = urlGenre;
+const urlRating = new URLSearchParams(window.location.search).get('min_rating');
+if (urlRating) document.getElementById('filter-rating').value = urlRating;
+
+document.addEventListener('DOMContentLoaded', loadMovies);
+</script>
+{% endblock %}

@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+{% block title %}My Films — {{ SITE_NAME }}{% endblock %}
+{% block content %}
+<div class="page">
+<div class="container">
+
+  <!-- HEADER -->
+  <section style="padding-top:48px;padding-bottom:32px;border-bottom:1px solid var(--border);margin-bottom:40px">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:20px">
+      <div>
+        <div class="label" style="margin-bottom:8px">Your Dashboard</div>
+        <h1 style="font-family:var(--font-display);font-size:clamp(28px,4vw,48px);letter-spacing:0.04em">{{ user.username|upper }}</h1>
+        <div id="algo-info" style="margin-top:8px"></div>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn btn-ghost btn-sm" onclick="refreshRecs()">↻ Refresh Recs</button>
+        <a href="/auth/profile/" class="btn btn-ghost btn-sm">Edit Profile</a>
+        {% if not user.is_onboarded %}
+        <a href="/auth/onboarding/" class="btn btn-primary btn-sm">Complete Setup</a>
+        {% endif %}
+      </div>
+    </div>
+  </section>
+
+  <!-- STATS ROW -->
+  <section style="margin-bottom:48px">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:16px" id="stats-row">
+      <!-- Populated by JS -->
+      <div class="stat-card"><div class="skeleton" style="height:40px;width:60px;margin-bottom:8px"></div><div class="skeleton" style="height:12px;width:80px"></div></div>
+      <div class="stat-card"><div class="skeleton" style="height:40px;width:60px;margin-bottom:8px"></div><div class="skeleton" style="height:12px;width:80px"></div></div>
+      <div class="stat-card"><div class="skeleton" style="height:40px;width:60px;margin-bottom:8px"></div><div class="skeleton" style="height:12px;width:80px"></div></div>
+      <div class="stat-card"><div class="skeleton" style="height:40px;width:60px;margin-bottom:8px"></div><div class="skeleton" style="height:12px;width:80px"></div></div>
+    </div>
+  </section>
+
+  <!-- RECOMMENDATIONS -->
+  <section style="margin-bottom:56px">
+    <div class="section-header">
+      <h2 class="section-title">For You</h2>
+      <div id="recs-count" style="font-size:13px;color:var(--text-muted)"></div>
+    </div>
+    <div class="carousel carousel--wide" id="recs-carousel">
+      <button class="carousel__arrow carousel__arrow--left">‹</button>
+      <div class="carousel__track" id="recs-track"></div>
+      <button class="carousel__arrow carousel__arrow--right">›</button>
+    </div>
+  </section>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:48px" class="dash-grid">
+
+    <!-- WATCHLIST -->
+    <section>
+      <div class="section-header">
+        <h2 class="section-title">My Watchlist</h2>
+        <span id="watchlist-count" style="font-size:13px;color:var(--text-muted)"></span>
+      </div>
+      <div id="watchlist-list" style="display:flex;flex-direction:column;gap:10px">
+        <div style="display:flex;flex-direction:column;gap:10px">${Skeleton.recCard(4)}</div>
+      </div>
+    </section>
+
+    <!-- RECENTLY WATCHED -->
+    <section>
+      <div class="section-header">
+        <h2 class="section-title">Recently Watched</h2>
+      </div>
+      <div id="watched-list" style="display:flex;flex-direction:column;gap:10px"></div>
+    </section>
+
+  </div>
+
+</div>
+</div>
+
+<style>
+@media(max-width:768px){.dash-grid{grid-template-columns:1fr!important}}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+async function loadDashboard() {
+  try {
+    const data = await API.dashboard.get();
+
+    // Stats
+    const stats = data.stats || {};
+    document.getElementById('stats-row').innerHTML = `
+      <div class="stat-card animate-fade-up">
+        <div class="stat-value">${stats.total_ratings||0}</div>
+        <div class="stat-label">Films Rated</div>
+        ${stats.avg_rating ? `<div class="stat-sub">avg ${stats.avg_rating}/10</div>` : ''}
+      </div>
+      <div class="stat-card animate-fade-up" style="animation-delay:60ms">
+        <div class="stat-value">${stats.total_watched||0}</div>
+        <div class="stat-label">Films Watched</div>
+        ${stats.total_hours ? `<div class="stat-sub">${stats.total_hours}h total</div>` : ''}
+      </div>
+      <div class="stat-card animate-fade-up" style="animation-delay:120ms">
+        <div class="stat-value">${stats.watchlist_count||0}</div>
+        <div class="stat-label">Watchlist</div>
+      </div>
+      <div class="stat-card animate-fade-up" style="animation-delay:180ms">
+        <div class="stat-value">${stats.cf_eligible ? '✓' : '~'}</div>
+        <div class="stat-label">${stats.cf_eligible ? 'Full ML Active' : 'Building Profile'}</div>
+        <div class="stat-sub">${stats.cf_eligible ? 'Hybrid recommendations' : 'Rate 5+ films'}</div>
+      </div>
+    `;
+
+    // Algorithm info
+    const algo = data.algorithm_info || {};
+    if (algo.algorithm) {
+      const labels = {hybrid:'Hybrid ML',content:'Content-Based',collaborative:'Collaborative Filtering',popularity:'Trending',genre:'Genre Match'};
+      document.getElementById('algo-info').innerHTML = `
+        <div class="algo-chip"><div class="dot"></div>${labels[algo.algorithm]||algo.algorithm} · ${algo.ratings_used||0} ratings</div>
+      `;
+    }
+
+    // Recommendations
+    const recs = data.recommendations || [];
+    const recsTrack = document.getElementById('recs-track');
+    recsTrack.innerHTML = '';
+    document.getElementById('recs-count').textContent = recs.length ? `${recs.length} picks` : '';
+
+    if (recs.length) {
+      recs.forEach((rec, i) => {
+        const card = MovieCard(rec.movie, {
+          recId: rec.id,
+          reasonText: rec.reason_text,
+          showReason: true,
+        });
+        card.style.animationDelay = `${i * 40}ms`;
+        recsTrack.appendChild(card);
+      });
+    } else {
+      recsTrack.innerHTML = `<div style="padding:40px 20px;color:var(--text-muted);font-size:14px">
+        ${data.user?.is_onboarded
+          ? 'Rate some films to get personalised recommendations!'
+          : '<a href="/auth/onboarding/" class="btn btn-primary">Complete your taste profile →</a>'}
+      </div>`;
+    }
+    initCarousel(document.getElementById('recs-carousel'));
+
+    // Watchlist
+    const watchlist = data.watchlist || [];
+    const wlList = document.getElementById('watchlist-list');
+    document.getElementById('watchlist-count').textContent = watchlist.length ? `${watchlist.length} films` : '';
+    wlList.innerHTML = '';
+    if (watchlist.length) {
+      watchlist.slice(0,8).forEach((item, i) => {
+        const m = item.movie;
+        const el = document.createElement('a');
+        el.href = `/movies/${m.slug||m.id}/`;
+        el.className = 'rec-card';
+        el.style.animationDelay = `${i*40}ms`;
+        el.innerHTML = `
+          <img class="rec-card__poster" src="${m.poster_url||''}" alt="${escHtml(m.title)}" onerror="this.style.display='none'">
+          <div class="rec-card__body">
+            <div class="rec-card__title">${escHtml(m.title)}</div>
+            <div class="rec-card__meta">${m.release_year||''} · ★ ${(m.vote_average||0).toFixed(1)}</div>
+            <div style="margin-top:auto">
+              <button onclick="event.preventDefault();toggleWatchlist(event,${m.id},this)" class="btn btn-ghost btn-sm" style="color:var(--crimson);border-color:rgba(192,57,43,0.3)">Remove</button>
+            </div>
+          </div>
+        `;
+        wlList.appendChild(el);
+      });
+    } else {
+      wlList.innerHTML = '<div style="color:var(--text-muted);font-size:14px;padding:20px 0">Your watchlist is empty. Browse films to add some!</div>';
+    }
+
+    // Recently watched
+    const watched = data.recent_watches || [];
+    const watchedList = document.getElementById('watched-list');
+    watchedList.innerHTML = '';
+    if (watched.length) {
+      watched.forEach((item, i) => {
+        const m = item.movie;
+        const el = document.createElement('a');
+        el.href = `/movies/${m.slug||m.id}/`;
+        el.className = 'rec-card animate-fade-up';
+        el.style.animationDelay = `${i*40}ms`;
+        el.innerHTML = `
+          <img class="rec-card__poster" src="${m.poster_url||''}" alt="${escHtml(m.title)}" onerror="this.style.display='none'">
+          <div class="rec-card__body">
+            <div class="rec-card__title">${escHtml(m.title)}</div>
+            <div class="rec-card__reason">✓ Watched</div>
+            <div class="rec-card__meta">${m.release_year||''} · ★ ${(m.vote_average||0).toFixed(1)}</div>
+          </div>
+          <div class="rec-card__score">${m.user_rating ? m.user_rating : ''}</div>
+        `;
+        watchedList.appendChild(el);
+      });
+    } else {
+      watchedList.innerHTML = '<div style="color:var(--text-muted);font-size:14px;padding:20px 0">No watch history yet.</div>';
+    }
+
+  } catch(e) {
+    console.error('Dashboard load error:', e);
+    Toast.error('Could not load dashboard data.');
+  }
+}
+
+window.loadDashboard = loadDashboard;
+
+window.refreshRecs = async function() {
+  const btn = document.querySelector('[onclick="refreshRecs()"]');
+  btn.textContent = '↻ Refreshing…';
+  try {
+    await API.recs.refresh();
+    await loadDashboard();
+    Toast.success('Recommendations updated!');
+  } catch { Toast.error('Could not refresh.'); }
+  finally { btn.textContent = '↻ Refresh Recs'; }
+};
+
+document.addEventListener('DOMContentLoaded', loadDashboard);
+</script>
+{% endblock %}

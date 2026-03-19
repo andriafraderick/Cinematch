@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Search: {{ query }} — {{ SITE_NAME }}{% endblock %}
+{% block content %}
+<div class="page">
+<div class="container">
+<section class="section">
+
+  <div class="section-header">
+    <h1 style="font-family:var(--font-display);font-size:40px;letter-spacing:0.04em">
+      {% if query %}RESULTS FOR <span style="color:var(--amber)">"{{ query|upper }}"</span>
+      {% else %}SEARCH{% endif %}
+    </h1>
+  </div>
+
+  <!-- Search bar (larger, page-level) -->
+  <div style="max-width:600px;margin-bottom:40px">
+    <div style="display:flex;gap:12px">
+      <input type="text"
+             id="search-input"
+             class="form-input"
+             value="{{ query }}"
+             placeholder="Search films, directors, genres…"
+             style="font-size:18px;padding:16px 20px">
+      <button class="btn btn-primary" onclick="doSearch()">Search</button>
+    </div>
+  </div>
+
+  <div style="font-size:13px;color:var(--text-muted);margin-bottom:24px" id="result-count"></div>
+
+  <div id="search-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:20px"></div>
+
+</section>
+</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const INITIAL_QUERY = "{{ query|escapejs }}";
+
+async function doSearch() {
+  const q = document.getElementById('search-input').value.trim();
+  if (!q) return;
+  window.history.replaceState({}, '', `/search/?q=${encodeURIComponent(q)}`);
+  document.title = `Search: ${q} — CineMatch`;
+  loadResults(q);
+}
+
+async function loadResults(q) {
+  const grid = document.getElementById('search-grid');
+  grid.innerHTML = '<div style="grid-column:1/-1;display:flex;gap:16px;flex-wrap:wrap">' + Skeleton.movieCard(8) + '</div>';
+  try {
+    const data = await API.movies.search(q, { page_size: 40 });
+    const movies = data?.results || [];
+    document.getElementById('result-count').textContent =
+      data?.count ? `${data.count} results` : 'No results';
+    grid.innerHTML = '';
+    if (!movies.length) {
+      grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:60px 0;color:var(--text-muted)">No films found. Try a different search.</div>';
+      return;
+    }
+    movies.forEach((m, i) => {
+      const card = MovieCard(m);
+      card.style.animationDelay = `${i * 30}ms`;
+      grid.appendChild(card);
+    });
+  } catch {
+    grid.innerHTML = '<div style="grid-column:1/-1;color:var(--text-muted);padding:40px;text-align:center">Search failed. Please try again.</div>';
+  }
+}
+
+document.getElementById('search-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doSearch();
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+  if (INITIAL_QUERY) loadResults(INITIAL_QUERY);
+});
+</script>
+{% endblock %}

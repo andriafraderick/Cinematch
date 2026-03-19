@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Set Up Your Taste — {{ SITE_NAME }}{% endblock %}
+{% block content %}
+<div class="page">
+<div class="container" style="max-width:800px;padding:80px 20px">
+
+  <!-- Progress -->
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:40px">
+    <div style="flex:1;height:3px;border-radius:2px;background:var(--amber)"></div>
+    <div style="flex:1;height:3px;border-radius:2px;background:var(--surface-high)"></div>
+    <div style="flex:1;height:3px;border-radius:2px;background:var(--surface-high)"></div>
+    <span style="font-size:12px;color:var(--text-muted);white-space:nowrap">Step 1 of 3</span>
+  </div>
+
+  <div class="label" style="margin-bottom:12px">Taste Setup</div>
+  <h1 style="font-family:var(--font-display);font-size:clamp(32px,5vw,56px);letter-spacing:0.04em;text-transform:uppercase;margin-bottom:12px">
+    What do you <span style="color:var(--amber)">love</span> to watch?
+  </h1>
+  <p style="font-size:15px;color:var(--text-secondary);margin-bottom:48px;line-height:1.6">
+    Select at least 3 genres. We'll use this to seed your recommendation engine — you can always refine it later.
+  </p>
+
+  <form method="post">
+    {% csrf_token %}
+
+    <!-- GENRE PILLS -->
+    <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:48px">
+      {% for genre in genres %}
+      <label class="genre-pill">
+        <input type="checkbox" name="genres" value="{{ genre.id }}">
+        {{ genre.icon }} {{ genre.name }}
+      </label>
+      {% endfor %}
+    </div>
+
+    <!-- STREAMING SERVICES -->
+    <div style="margin-bottom:48px">
+      <h3 style="font-size:16px;font-weight:600;margin-bottom:6px">Your Streaming Services</h3>
+      <p style="font-size:13px;color:var(--text-secondary);margin-bottom:20px">We'll prioritise recommendations available on these.</p>
+      <div style="display:flex;flex-wrap:wrap;gap:10px">
+        {% for service in streaming_services %}
+        <label class="genre-pill" style="border-radius:var(--radius-md)">
+          <input type="checkbox" name="streaming_services" value="{{ service }}">
+          {{ service }}
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div style="display:flex;gap:16px;align-items:center">
+      <button type="submit" class="btn btn-primary btn-lg" id="submit-btn">
+        Build My Taste Profile →
+      </button>
+      <a href="/dashboard/" style="font-size:13px;color:var(--text-muted);text-decoration:none">Skip for now</a>
+    </div>
+  </form>
+
+</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Toggle genre pill selected state on click
+document.querySelectorAll('.genre-pill').forEach(pill => {
+  const cb = pill.querySelector('input[type="checkbox"]');
+  pill.addEventListener('click', () => {
+    setTimeout(() => pill.classList.toggle('selected', cb.checked), 0);
+  });
+});
+
+// Validate min 1 genre selected
+document.querySelector('form').addEventListener('submit', (e) => {
+  const selected = document.querySelectorAll('input[name="genres"]:checked').length;
+  if (selected < 1) {
+    e.preventDefault();
+    Toast.error('Please select at least one genre.');
+  }
+});
+</script>
+{% endblock %}
